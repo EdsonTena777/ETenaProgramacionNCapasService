@@ -1,0 +1,2 @@
+SP011|Sergio|Perez|Checo|22334455|sp11@email.com|Edson.123!|1990/01/26|M|5599887766|SP1133MX|3|Guadalajara|15|20|12
+OP081|Oscar|Piastri|Kangaroo|88990011|op81@email.com|Edson.123!|2001/04/06|M|5522113344|OP8112AU|2|Melbourne|7|11|54

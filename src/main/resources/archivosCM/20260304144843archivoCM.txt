@@ -1,0 +1,2 @@
+DN3|Daniel|Ricciardo|Maldonado|545454545|dr3@email.com|Edson.123!|1990/01/26|M|5566778899|DR1133AU|3|España|15|20|150
+T001|Oscar|Palou|Toro|88990011|toroP@email.com|Edson.123!|2001/04/06|M|5522113344|OP8112AU|2|Uruguay|7|11|100

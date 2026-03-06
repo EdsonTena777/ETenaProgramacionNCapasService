@@ -1,0 +1,2 @@
+CL116|Charles|Leclerc|Ferrari|44332211|cl16@email.com|Edson.123!|1997/10/16|M|5511223344|CL1699FR|2|Roma|12|8|45
+CS555|Carlos|Sainz|Toro|77889900|cs55@email.com|Edson.123!|1994/09/01|M|5588776655|CS5544ES|3|Madrid|9|22|67
