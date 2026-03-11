@@ -4,6 +4,7 @@ package com.digis.com.ETenaProgramacionNCapasMaven.DAO;
 import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Colonia;
 import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Direccion;
 import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Result;
+import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Usuario;
 import jakarta.persistence.EntityManager;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,105 @@ public class DireccionDAOJPAImplementation implements iDireccionJPA{
             result.ex = ex;
         }
     return result;    
+    }
+    @Override
+    @Transactional
+    public Result<Direccion> UpdateDireccion(Direccion direccion){
+        Result<Direccion> result = new Result<>();
+        try {
+            Direccion direccionJPA = entityManager.find(Direccion.class, direccion.getIdDireccion());
+            if(direccionJPA == null){
+                result.correct = false;
+                result.errorMessage = "La direccion no existe";
+                return result;
+            }
+            direccionJPA.setCalle(direccion.getCalle());
+            direccionJPA.setNumeroExterior(direccion.getNumeroExterior());
+            direccionJPA.setNumeroInterior(direccion.getNumeroInterior());
+            
+            if(direccion.getColonia() == null || direccion.getColonia().getIdColonia() == 0){
+                result.correct = false;
+                result.errorMessage = "La colonia no es valida";
+                return result;
+            }
+            Colonia coloniaJPA = entityManager.find(Colonia.class, direccion.getColonia().getIdColonia());
+            
+            if(coloniaJPA == null){
+                result.correct = false;
+                result.errorMessage = "La colonia no existe";
+                return result;
+            }
+            
+            direccionJPA.setColonia(coloniaJPA);
+            
+            result.correct = true;
+            result.object = direccionJPA;
+            
+        }catch(Exception ex){
+            result.correct = false;
+            result.errorMessage = ex.getLocalizedMessage();
+            result.ex = ex;
+        }
+    return result;    
+    }
+    @Override
+    @Transactional
+    public Result<Direccion> Add(int idUsuario, Direccion direccion){
+        Result<Direccion> result = new Result<>();
+        try{
+            Usuario usuarioJPA = entityManager.find(Usuario.class, idUsuario);
+            if(usuarioJPA == null){
+                result.correct = false;
+                result.errorMessage = "No se encontro usuario";
+                return result;
+            }
+            if(direccion.getColonia() == null || direccion.getColonia().getIdColonia() == 0){
+                result.correct = false;
+                result.errorMessage = "debe seleccionar colonia valida";
+                return result;
+            }
+            Colonia coloniaJPA = entityManager.find(Colonia.class, direccion.getColonia().getIdColonia());
+            if(coloniaJPA == null){
+                result.correct = false;
+                result.errorMessage = "No se encontro colonia";
+                return result;
+            }
+            direccion.setUsuario(usuarioJPA);
+            direccion.setColonia(coloniaJPA);
+            
+            entityManager.persist(direccion);
+            entityManager.flush();
+            result.correct = true;
+            result.object = direccion;
+        }catch(Exception ex){
+            result.correct = false;
+            result.errorMessage = ex.getLocalizedMessage();
+            result.ex = ex;
+        }
+    return result;    
+    }
+    @Override
+    @Transactional
+    public Result<Direccion> Delete(Direccion direccion){
+        Result<Direccion> result = new Result<>(); 
+        try{
+            Direccion direccionJPA = entityManager.find(Direccion.class, direccion.getIdDireccion());
+            if(direccionJPA != null){
+                entityManager.remove(direccionJPA);
+                entityManager.flush();
+                result.correct = true;
+                result.object = null;
+            } else {
+                result.correct = false;
+                result.errorMessage = "La Direccion no existe.";
+            }
+        }catch(Exception ex){
+            result.correct = false;
+            result.errorMessage = ex.getLocalizedMessage();
+            result.ex = ex;
+            result.ex = null;
+        }
+    return result;
     }
     /*
     @Override

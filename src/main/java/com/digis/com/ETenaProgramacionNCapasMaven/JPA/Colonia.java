@@ -49,15 +49,6 @@ public class Colonia {
     public void setMunicipio(Municipio Municipio) {
         this.Municipio = Municipio;
     }
-   
-    
-    public int getidColonia(){
-        return idColonia;
-    }
-    
-    public void setidColonia(int idColonia){
-        this.idColonia = idColonia;
-    }
     
     public String getNombre(){
         return Nombre;

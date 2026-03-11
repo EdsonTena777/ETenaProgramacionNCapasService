@@ -4,6 +4,7 @@ package com.digis.com.ETenaProgramacionNCapasMaven.RestController;
 import com.digis.com.ETenaProgramacionNCapasMaven.DAO.ColoniaDAOJPAImplementation;
 import com.digis.com.ETenaProgramacionNCapasMaven.DAO.EstadoDAOJPAImplementation;
 import com.digis.com.ETenaProgramacionNCapasMaven.DAO.MunicipioDAOJPAImplementation;
+import com.digis.com.ETenaProgramacionNCapasMaven.DAO.PaisDAOJPAImplementation;
 import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class CatalogoRestController {
     
     @Autowired
+    private PaisDAOJPAImplementation paisDAOJPAImplementation;
+    
+    @Autowired
     private EstadoDAOJPAImplementation estadoDAOJPAImplementation;
     
     @Autowired
@@ -24,6 +28,24 @@ public class CatalogoRestController {
     
     @Autowired
     private ColoniaDAOJPAImplementation coloniaDAOJPAImplementation;
+    
+    @GetMapping("/pais/getall")
+    public ResponseEntity<?> paisGetAll(){
+        try{
+            Result result = paisDAOJPAImplementation.GetAll();
+            if(result.correct){
+                if(result.objects != null && !result.objects.isEmpty()){
+                    return ResponseEntity.ok(result);
+                } else {
+                    return ResponseEntity.noContent().build();
+                }
+            } else {
+                return ResponseEntity.badRequest().body(result);
+            }
+        }catch(Exception ex){
+            return ResponseEntity.status(500).body(null);
+        }
+    }
 
     @GetMapping("/estado/getbyidpais")
     public ResponseEntity<Result> estadoGetByIdPais(@RequestParam int idPais) {

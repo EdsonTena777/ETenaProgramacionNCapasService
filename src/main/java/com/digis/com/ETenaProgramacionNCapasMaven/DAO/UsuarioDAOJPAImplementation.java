@@ -2,6 +2,7 @@
 package com.digis.com.ETenaProgramacionNCapasMaven.DAO;
 
 import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Colonia;
+import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Direccion;
 import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Rol;
 import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Usuario;
 import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Result;
@@ -38,6 +39,43 @@ public class UsuarioDAOJPAImplementation implements iUsuarioJPA {
         }
     return result;    
     }
+    
+    @Override
+    public Result<Usuario> GetAllDinamico(String nombre, String apellidoPaterno, String apellidoMaterno, String rol) {
+        Result<Usuario> result = new Result<>();
+        try {
+            StringBuilder jpql = new StringBuilder("SELECT u FROM Usuario u LEFT JOIN FETCH u.Roles r WHERE 1=1 ");
+
+            if (nombre != null && !nombre.trim().isEmpty()) 
+                jpql.append("AND LOWER(u.Nombre) LIKE :nombre ");
+            if (apellidoPaterno != null && !apellidoPaterno.trim().isEmpty()) 
+                jpql.append("AND LOWER(u.ApellidoPaterno) LIKE :apellidoPaterno ");
+            if (apellidoMaterno != null && !apellidoMaterno.trim().isEmpty()) 
+                jpql.append("AND LOWER(u.ApellidoMaterno) LIKE :apellidoMaterno ");
+            if (rol != null && !rol.trim().isEmpty()) 
+                jpql.append("AND LOWER(r.NombreRol) LIKE :rol ");
+
+            TypedQuery<Usuario> queryUsuario = entityManager.createQuery(jpql.toString(), Usuario.class);
+
+            if (nombre != null && !nombre.trim().isEmpty())queryUsuario.setParameter("nombre", "%" + nombre.toLowerCase() + "%");
+            if (apellidoPaterno != null && !apellidoPaterno.trim().isEmpty())queryUsuario.setParameter("apellidoPaterno", "%" + apellidoPaterno.toLowerCase() + "%");
+            if (apellidoMaterno != null && !apellidoMaterno.trim().isEmpty())queryUsuario.setParameter("apellidoMaterno", "%" + apellidoMaterno.toLowerCase() + "%");
+            if (rol != null && !rol.trim().isEmpty())queryUsuario.setParameter("rol", "%" + rol.toLowerCase() + "%");
+
+            List<Usuario> usuarios = queryUsuario.getResultList();
+
+            result.objects = usuarios;
+            result.correct = true;
+
+        } catch (Exception ex) {
+            result.correct = false;
+            result.errorMessage = ex.getLocalizedMessage();
+            result.ex = ex;
+        }
+        return result;
+    }
+
+
     /*
     @Override
     public Result GetAllDinamico(String nombre, String apellidoPaterno, String apellidoMaterno, String rol) {
@@ -91,6 +129,29 @@ public class UsuarioDAOJPAImplementation implements iUsuarioJPA {
         }
     return result;    
     }
+    @Override
+    @Transactional
+    public Result<Usuario> Add(Usuario usuario) {
+        Result<Usuario> result = new Result<>();
+        try {
+            if (usuario.getDirecciones() != null) {
+                for (Direccion direccion : usuario.getDirecciones()) {
+                    direccion.setUsuario(usuario); 
+                }
+            }
+
+            entityManager.persist(usuario); // Ahora persistirá usuario y direcciones en cascada
+
+            result.correct = true;
+            result.object = usuario;
+        } catch (Exception ex) {
+            result.correct = false;
+            result.errorMessage = ex.getLocalizedMessage();
+            result.ex = ex;
+        }
+        return result;
+    }
+
     /*
     @Override
     @Transactional
@@ -195,14 +256,46 @@ public class UsuarioDAOJPAImplementation implements iUsuarioJPA {
     return result;    
     }
     */
+    @Override 
+    @Transactional
+    public Result<Usuario> UpdateUsuairo(Usuario usuario){
+        Result<Usuario> result = new Result<>();
+        try{
+            Usuario usuarioJPA = entityManager.find(Usuario.class, usuario.getIdUsuario());
+            if(usuarioJPA == null){
+                result.correct = false;
+                result.errorMessage = "El usuario no se encuentra";
+                return result;
+            }
+            usuarioJPA.setUsername(usuario.getUsername());
+            usuarioJPA.setNombre(usuario.getNombre());
+            usuarioJPA.setApellidoPaterno(usuario.getApellidoPaterno());
+            usuarioJPA.setApellidoMaterno(usuario.getApellidoMaterno());
+            usuarioJPA.setEmail(usuario.getEmail());
+            usuarioJPA.setSexo(usuario.getSexo());
+            usuarioJPA.setTelefono(usuario.getTelefono());
+            usuarioJPA.setCelular(usuario.getCelular());
+            usuarioJPA.setCURP(usuario.getCURP());
+            usuarioJPA.setFechaNacimiento(usuario.getFechaNacimiento());
+            Rol rolJPA = entityManager.find(Rol.class, usuario.getRoles().getIdRol());
+            usuarioJPA.setRoles(rolJPA);
+            result.correct = true;
+            result.object = usuarioJPA;
+        }catch(Exception ex){
+            result.correct = false;
+            result.errorMessage = ex.getLocalizedMessage();
+            result.ex = ex;
+        }
+    return result;    
+    }
     @Override
     @Transactional
-    public Result UpdateStatus(Usuario usuario) {
+    public Result<Usuario> UpdateStatus(Usuario usuario) {
         Result result = new Result();
         try {
             Usuario usuarioJPA = entityManager.find(Usuario.class, usuario.getIdUsuario());
             if (usuarioJPA != null) {
-                usuarioJPA.setStatus(usuarioJPA.getStatus() == 1 ? 0 : 1);
+                usuarioJPA.setStatus(usuario.getStatus());
                 result.correct = true;
                 result.object = usuarioJPA;
             } else {
@@ -216,17 +309,42 @@ public class UsuarioDAOJPAImplementation implements iUsuarioJPA {
         }
         return result;
     }
-    /*
+    @Override 
+    @Transactional
+    public Result<Usuario> UpdateImagen(Usuario usuario){
+        Result<Usuario> result = new Result<>();
+        try{
+            Usuario usuarioJPA = entityManager.find(Usuario.class, usuario.getIdUsuario());
+            if(usuarioJPA != null){
+                usuarioJPA.setImagen(usuario.getImagen());
+                entityManager.merge(usuarioJPA);
+                result.correct = true;
+                result.object = usuarioJPA; 
+            } else {
+                result.correct = false;
+                result.errorMessage = "Usuario no encontrado";
+                return result;
+            }
+        }catch(Exception ex){
+            result.correct = false;
+            result.errorMessage = ex.getLocalizedMessage();
+            result.ex = ex;
+        }
+    return result;   
+    }
+    
     @Override
     @Transactional
-    public Result Delete(com.digis.com.ETenaProgramacionNCapasMaven.ML.Usuario usuarioML) {
-        Result result = new Result();
+    public Result<Usuario> Delete(Usuario usuario) {
+        Result<Usuario> result = new Result();
         try {
-            com.digis.com.ETenaProgramacionNCapasMaven.JPA.Usuario usuarioJPA = entityManager.find(com.digis.com.ETenaProgramacionNCapasMaven.JPA.Usuario.class, usuarioML.getIdUsuario());
+            Usuario usuarioJPA = entityManager.find(Usuario.class, usuario.getIdUsuario());
 
             if (usuarioJPA != null) {
                 entityManager.remove(usuarioJPA);
+                entityManager.flush();
                 result.correct = true;
+                result.object = null; 
             } else {
                 result.correct = false;
                 result.errorMessage = "El usuario no existe.";
@@ -235,8 +353,9 @@ public class UsuarioDAOJPAImplementation implements iUsuarioJPA {
             result.correct = false;
             result.errorMessage = ex.getLocalizedMessage();
             result.ex = ex;
+            result.ex = null;
         }
         return result;
-    }*/
+    }
 
 }
