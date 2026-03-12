@@ -151,7 +151,28 @@ public class UsuarioDAOJPAImplementation implements iUsuarioJPA {
         }
         return result;
     }
-
+    @Override
+    @Transactional
+    public Result AddAll(List<Usuario> usuarios){
+        Result result  = new Result();
+        try{
+            for(Usuario usuario : usuarios){
+                if(usuario.getDirecciones() != null){
+                    for(Direccion direccion : usuario.getDirecciones()){
+                        direccion.setUsuario(usuario);
+                    }
+                }
+                entityManager.persist(usuario);
+            }
+            entityManager.flush();
+            result.correct = true;
+        }catch(Exception ex){
+            result.correct = false;
+            result.errorMessage = ex.getLocalizedMessage();
+            result.ex = ex;
+        }
+    return result;
+    }
     /*
     @Override
     @Transactional

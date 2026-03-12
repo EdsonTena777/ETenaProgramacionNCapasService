@@ -2,6 +2,7 @@
 package com.digis.com.ETenaProgramacionNCapasMaven.JPA;
 
 import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Colonia;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -30,7 +31,7 @@ public class Direccion {
     public Colonia Colonia;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "idusuario")
-    @JsonIgnore
+    @JsonBackReference
     public Usuario Usuario;
 
     public Direccion() {

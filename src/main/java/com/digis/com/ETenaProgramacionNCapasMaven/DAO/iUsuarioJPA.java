@@ -15,6 +15,7 @@ public interface iUsuarioJPA {
     Result<Usuario> UpdateImagen(Usuario usuario);
     Result<Usuario> GetAllDinamico(String nombre, String apellidoPaterno, String apellidoMaterno, String rol);
     Result<Usuario> Delete(Usuario usuario);
+    Result AddAll(List<Usuario> usuarios);
     /*Result GetAllDinamico(String nombre, String apellidoPaterno, String apellidoMaterno, String rol);
     Result AddAll(List<com.digis.com.ETenaProgramacionNCapasMaven.ML.Usuario> usuariosML);
     Result UpdateUsuario(com.digis.com.ETenaProgramacionNCapasMaven.ML.Usuario usuarioML);

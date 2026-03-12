@@ -1,0 +1,1 @@
+ebe25b98588e471498efd6772a3a0bf4|C:\Users\digis\OneDrive\Documentos\EdsonAlejandroTenaRodriguez\Spring\ETenaProgramacionNCapasMavenService\ETenaProgramacionNCapasMavenService/src/main/resources/archivosCM/20260311162304usuario.txt|Recibido|11/03/2026 16:23/06|Archivo validacion

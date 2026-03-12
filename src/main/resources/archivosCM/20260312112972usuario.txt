@@ -1,0 +1,2 @@
+Y001|Yosgart|Gutierrez|Toro|81990011|yoroP@email.com|Edson.123!|2001/04/06|M|5552113344|OP8112AU|2|Argentina|7|7|101
+F001|Juan|Pelaez|Moro|56990011|poroP@email.com|Edson.123!|2001/04/06|M|5552893344|LO8112AU|2|españa|11|11|100

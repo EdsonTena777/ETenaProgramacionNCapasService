@@ -1,0 +1,1 @@
+juan|Juan|Perez|Lopez|5512345678|juan@email.com|12345|02/02/1999|M|5512345678|CURP654321|2|Calle 1|15|30|6
