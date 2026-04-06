@@ -5,8 +5,14 @@ import com.digis.com.ETenaProgramacionNCapasMaven.DAO.EstadoDAOJPAImplementation
 import com.digis.com.ETenaProgramacionNCapasMaven.DAO.PaisDAOJPAImplementation;
 import com.digis.com.ETenaProgramacionNCapasMaven.DAO.RolDAOJPAImplementation;
 import com.digis.com.ETenaProgramacionNCapasMaven.DAO.UsuarioDAOJPAImplementation;
+import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Colonia;
+import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Direccion;
 import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Result;
+import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Rol;
 import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Usuario;
+import com.digis.com.ETenaProgramacionNCapasMaven.JPA.UsuarioDireccionAddDTO;
+import com.digis.com.ETenaProgramacionNCapasMaven.JPA.UsuarioImagenDTO;
+import com.digis.com.ETenaProgramacionNCapasMaven.JPA.UsuarioUpdateDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -16,11 +22,15 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -79,6 +89,26 @@ public class UsuarioRestController {
         
         }catch(Exception ex){
             return ResponseEntity.status(500).body(ex);
+        }
+    }
+    @GetMapping("/me")
+    public ResponseEntity<?> getMiPerfil(){
+        try{
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String Username = authentication.getName();
+            Result result = usuarioDAOJPAImplementation.getByUsername(Username);
+            if(!result.correct){
+                return ResponseEntity.badRequest().body(result.errorMessage);
+            }
+            Usuario usuario = (Usuario) result.object;
+            Result resultId = usuarioDAOJPAImplementation.GetById(usuario.getIdUsuario());
+            if(resultId.correct){
+                return ResponseEntity.ok(resultId);
+            } else {
+                return ResponseEntity.badRequest().body(resultId.errorMessage);
+            }
+        }catch(Exception ex){
+            return ResponseEntity.status(500).body(ex.getLocalizedMessage());
         }
     }
     @Tag(name = "Usuario", description = "Endpoints para el procesamiento de Usuario")
@@ -200,14 +230,18 @@ public class UsuarioRestController {
         @ApiResponse(responseCode = "500", description = "Error interno del servidor")
     })
     @PutMapping("/updateStatus/{idUsuario}")
-    public ResponseEntity<?> updateStatus(
-            @Parameter(description = "ID del usuario a modificar") 
-            @PathVariable int idUsuario,
-
-            @Parameter(description = "Nuevo valor de estatus (ej. 1 para Activo, 0 para Inactivo)", example = "1") 
-            @RequestParam int status) {
-
+    public ResponseEntity<?> updateStatus(@PathVariable int idUsuario,
+                                          @RequestParam int status,
+                                          Authentication authentication) {
         try {
+            boolean esAdmin = authentication.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_Admin"));
+
+            if (!esAdmin) {
+                return ResponseEntity.status(403)
+                        .body("Forbidden: solo un administrador puede actualizar el estatus");
+            }
+
             Usuario usuario = new Usuario();
             usuario.setIdUsuario(idUsuario);
             usuario.setStatus(status);
@@ -229,29 +263,61 @@ public class UsuarioRestController {
     }
 
     @Tag(name = "Usuario", description = "Endpoints para el procesamiento de Usuario")
-    @Operation(summary = "Actualizar imagen de perfil", 
+    @Operation(summary = "Actualizar imagen de perfil",
                description = "Actualiza la imagen de un usuario específico enviando la cadena Base64 en el cuerpo de la petición.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Imagen actualizada exitosamente"),
+        @ApiResponse(responseCode = "403", description = "Forbidden"),
         @ApiResponse(responseCode = "404", description = "No se encontró el usuario para actualizar"),
         @ApiResponse(responseCode = "400", description = "Error en los datos de la imagen"),
         @ApiResponse(responseCode = "500", description = "Error interno del servidor")
     })
     @PutMapping("/updateImagen/{idUsuario}")
     public ResponseEntity<?> updateImagen(
-            @Parameter(description = "ID del usuario") 
-            @PathVariable int idUsuario, 
+            @Parameter(description = "ID del usuario")
+            @PathVariable int idUsuario,
 
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                description = "Objeto usuario que contiene la nueva cadena de imagen (Base64)",
+                description = "Objeto con la nueva cadena Base64 de la imagen",
                 required = true,
-                content = @Content(schema = @Schema(implementation = Usuario.class),
-                examples = @ExampleObject(value = "{ \"imagen\": \"data:image/png;base64,iVBOR...\" }")))
-            @RequestBody Usuario usuario) {
+                content = @Content(
+                    schema = @Schema(implementation = UsuarioImagenDTO.class),
+                    examples = @ExampleObject(value = "{ \"imagen\": \"data:image/png;base64,iVBOR...\" }")
+                )
+            )
+            @RequestBody UsuarioImagenDTO dto,
+            Authentication authentication) {
 
         try {
-            usuario.setIdUsuario(idUsuario);       
-            Result result = usuarioDAOJPAImplementation.UpdateImagen(usuario);
+            String username = authentication.getName();
+
+            boolean esAdmin = authentication.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_Admin"));
+
+            if (!esAdmin) {
+                Result<Usuario> resultUsuarioAuth = usuarioDAOJPAImplementation.getByUsername(username);
+
+                if (!resultUsuarioAuth.correct || resultUsuarioAuth.object == null) {
+                    return ResponseEntity.status(401).body("Usuario autenticado no encontrado");
+                }
+
+                Usuario usuarioAuth = resultUsuarioAuth.object;
+
+                if (usuarioAuth.getIdUsuario() != idUsuario) {
+                    return ResponseEntity.status(403)
+                            .body("Forbidden: no puedes actualizar la imagen de otro usuario");
+                }
+            }
+
+            if (dto.getImagen() == null || dto.getImagen().isBlank()) {
+                return ResponseEntity.badRequest().body("La imagen es obligatoria");
+            }
+
+            Usuario usuario = new Usuario();
+            usuario.setIdUsuario(idUsuario);
+            usuario.setImagen(dto.getImagen());
+
+            Result<Usuario> result = usuarioDAOJPAImplementation.UpdateImagen(usuario);
 
             if (result.correct) {
                 if (result.object != null) {
@@ -262,65 +328,167 @@ public class UsuarioRestController {
             } else {
                 return ResponseEntity.badRequest().body(result.errorMessage);
             }
+
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(ex.getMessage());
         }
     }
-    
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> add(
-            @RequestPart("datos") String datos,
-            @RequestPart(name = "imagen", required = false) MultipartFile imagen) {
+        public ResponseEntity<?> add(
+                @RequestPart("datos") String datos,
+                @RequestPart(name = "imagen", required = false) MultipartFile imagen) {
 
-        try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            Usuario usuario = objectMapper.readValue(datos, Usuario.class);
+            try {
+                ObjectMapper objectMapper = new ObjectMapper();
+                UsuarioDireccionAddDTO dto = objectMapper.readValue(datos, UsuarioDireccionAddDTO.class);
 
-            if (imagen != null && !imagen.isEmpty()) {
-                String nombreArchivo = imagen.getOriginalFilename();
-                String extension = nombreArchivo.substring(nombreArchivo.lastIndexOf(".") + 1).toLowerCase();
+                Usuario usuario = new Usuario();
+                usuario.setUsername(dto.getUsername());
+                usuario.setNombre(dto.getNombre());
+                usuario.setImagen(dto.getImagen());
+                usuario.setApellidoPaterno(dto.getApellidoPaterno());
+                usuario.setApellidoMaterno(dto.getApellidoMaterno());
+                usuario.setEmail(dto.getEmail());
+                usuario.setPassword(dto.getPassword());
+                usuario.setFechaNacimiento(dto.getFechaNacimiento());
+                usuario.setSexo(dto.getSexo());
+                usuario.setTelefono(dto.getTelefono());
+                usuario.setCelular(dto.getCelular());
+                usuario.setCURP(dto.getCurp());
 
-                if (extension.equals("jpg") || extension.equals("jpeg") || extension.equals("png")) {
+                Rol rol = new Rol();
+                rol.setIdRol(dto.getIdRol());
+                usuario.setRoles(rol);
+
+                Direccion direccion = new Direccion();
+                direccion.setCalle(dto.getCalle());
+                direccion.setNumeroExterior(dto.getNumeroExterior());
+                direccion.setNumeroInterior(dto.getNumeroInterior());
+
+                Colonia colonia = new Colonia();
+                colonia.setIdColonia(dto.getIdColonia());
+                direccion.setColonia(colonia);
+
+                List<Direccion> direcciones = new ArrayList<>();
+                direcciones.add(direccion);
+                usuario.setDirecciones(direcciones);
+
+                if (imagen != null && !imagen.isEmpty()) {
                     byte[] bytes = imagen.getBytes();
                     String imagenBase64 = Base64.getEncoder().encodeToString(bytes);
                     usuario.setImagen(imagenBase64);
+                }
+
+                Result<Usuario> result = usuarioDAOJPAImplementation.Add(usuario);
+
+                if (result.correct) {
+                    return ResponseEntity.status(201).body(result);
                 } else {
-                    Result<Usuario> result = new Result<>();
-                    result.correct = false;
-                    result.errorMessage = "Formato de imagen no permitido";
                     return ResponseEntity.badRequest().body(result);
                 }
+
+            } catch (Exception ex) {
+                return ResponseEntity.status(500).body("Error en mapeo: " + ex.getMessage());
+            }
+        }
+
+
+//    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+//    public ResponseEntity<?> add(
+//            @RequestPart("datos") String datos,
+//            @RequestPart(name = "imagen", required = false) MultipartFile imagen) {
+//
+//        try {
+//            ObjectMapper objectMapper = new ObjectMapper();
+//            Usuario usuario = objectMapper.readValue(datos, Usuario.class);
+//
+//            if (imagen != null && !imagen.isEmpty()) {
+//                String nombreArchivo = imagen.getOriginalFilename();
+//                String extension = nombreArchivo.substring(nombreArchivo.lastIndexOf(".") + 1).toLowerCase();
+//
+//                if (extension.equals("jpg") || extension.equals("jpeg") || extension.equals("png")) {
+//                    byte[] bytes = imagen.getBytes();
+//                    String imagenBase64 = Base64.getEncoder().encodeToString(bytes);
+//                    usuario.setImagen(imagenBase64);
+//                } else {
+//                    Result<Usuario> result = new Result<>();
+//                    result.correct = false;
+//                    result.errorMessage = "Formato de imagen no permitido";
+//                    return ResponseEntity.badRequest().body(result);
+//                }
+//            }
+//
+//            Result<Usuario> result = usuarioDAOJPAImplementation.Add(usuario);
+//
+//            if (result.correct) {
+//                return ResponseEntity.status(201).body(result);
+//            } else {
+//                return ResponseEntity.badRequest().body(result);
+//            }
+//
+//        } catch (Exception ex) {
+//            return ResponseEntity.status(500).body(ex.getLocalizedMessage());
+//        }
+//    }
+    @PutMapping("/{idUsuario}")
+    public ResponseEntity<?> update(@PathVariable int idUsuario,
+                                    @RequestBody UsuarioUpdateDTO dto,
+                                    Authentication authentication) {
+
+        System.out.println("Entró al update con id: " + idUsuario);
+
+        try {
+            String username = authentication.getName();
+
+            boolean esAdmin = authentication.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_Admin"));
+
+            if (!esAdmin) {
+                Result<Usuario> resultUsuarioAuth = usuarioDAOJPAImplementation.getByUsername(username);
+
+                if (!resultUsuarioAuth.correct || resultUsuarioAuth.object == null) {
+                    return ResponseEntity.status(401).body("Usuario autenticado no encontrado");
+                }
+
+                Usuario usuarioAuth = resultUsuarioAuth.object;
+
+                if (usuarioAuth.getIdUsuario() != idUsuario) {
+                    return ResponseEntity.status(403)
+                            .body("Forbidden: no puedes actualizar la información de otro usuario");
+                }
             }
 
-            Result<Usuario> result = usuarioDAOJPAImplementation.Add(usuario);
+            Usuario usuario = new Usuario();
+            usuario.setIdUsuario(idUsuario);
+
+            usuario.setUsername(dto.getUsername());
+            usuario.setNombre(dto.getNombre());
+            usuario.setApellidoPaterno(dto.getApellidoPaterno());
+            usuario.setApellidoMaterno(dto.getApellidoMaterno());
+            usuario.setEmail(dto.getEmail());
+            usuario.setPassword(dto.getPassword());
+            usuario.setFechaNacimiento(dto.getFechaNacimiento());
+            usuario.setSexo(dto.getSexo());
+            usuario.setTelefono(dto.getTelefono());
+            usuario.setCelular(dto.getCelular());
+            usuario.setCURP(dto.getCurp());
+
+            if (dto.getIdRol() != null) {
+                Rol rol = new Rol();
+                rol.setIdRol(dto.getIdRol());
+                usuario.setRoles(rol);
+            }
+
+            Result<Usuario> result = usuarioDAOJPAImplementation.UpdateUsuairo(usuario);
 
             if (result.correct) {
-                return ResponseEntity.status(201).body(result);
-            } else {
-                return ResponseEntity.badRequest().body(result);
-            }
-
-        } catch (Exception ex) {
-            return ResponseEntity.status(500).body(ex.getLocalizedMessage());
-        }
-    }
-    
-    @PutMapping("/{idUsuario}")
-    public ResponseEntity<?> update(@PathVariable int idUsuario, @RequestBody Usuario usuario){
-        try{
-            usuario.setIdUsuario(idUsuario);
-            Result<Usuario> result = usuarioDAOJPAImplementation.UpdateUsuairo(usuario);
-            if(result.correct){
-                if(result.object != null){
-                    return ResponseEntity.ok(result);
-                } else {
-                    return ResponseEntity.notFound().build();
-                }
+                return ResponseEntity.ok(result);
             } else {
                 return ResponseEntity.badRequest().body(result.errorMessage);
             }
-        }catch (Exception ex){
-            return ResponseEntity.status(500).body(ex);
+
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body(ex.getMessage());
         }
     }
     @Tag(name = "Usuario", description = "Endpoints para el procesamiento de Usuario")

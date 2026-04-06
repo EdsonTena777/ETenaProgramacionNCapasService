@@ -7,6 +7,7 @@ import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Rol;
 import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Usuario;
 import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Result;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class UsuarioDAOJPAImplementation implements iUsuarioJPA {
     
-    @Autowired
+    @PersistenceContext
     private EntityManager entityManager;
     
     @Autowired
@@ -40,6 +41,21 @@ public class UsuarioDAOJPAImplementation implements iUsuarioJPA {
     return result;    
     }
     
+    @Override
+    public Result getByUsername(String Username){
+        Result result = new Result();
+        try{
+            TypedQuery<Usuario> queryUsuario =entityManager.createQuery("FROM Usuario WHERE Username = :pUsername", Usuario.class);
+            queryUsuario.setParameter("pUsername", Username);
+            result.object = queryUsuario.getSingleResult();
+            result.correct = true;
+        }catch(Exception ex){
+            result.correct = false;
+            result.errorMessage = ex.getLocalizedMessage();
+            result.ex = ex;
+        }
+        return result;
+    }
     @Override
     public Result<Usuario> GetAllDinamico(String nombre, String apellidoPaterno, String apellidoMaterno, String rol) {
         Result<Usuario> result = new Result<>();
@@ -74,42 +90,7 @@ public class UsuarioDAOJPAImplementation implements iUsuarioJPA {
         }
         return result;
     }
-
-
-    /*
-    @Override
-    public Result GetAllDinamico(String nombre, String apellidoPaterno, String apellidoMaterno, String rol) {
-        Result result = new Result();
-        try {
-            StringBuilder jpql = new StringBuilder("SELECT u FROM Usuario u LEFT JOIN u.Roles r WHERE 1=1 ");
-
-            if (nombre != null && !nombre.isEmpty()) jpql.append("AND LOWER(u.Nombre) LIKE :nombre ");
-            if (apellidoPaterno != null && !apellidoPaterno.isEmpty()) jpql.append("AND LOWER(u.ApellidoPaterno) LIKE :apellidoPaterno ");
-            if (apellidoMaterno != null && !apellidoMaterno.isEmpty()) jpql.append("AND LOWER(u.ApellidoMaterno) LIKE :apellidoMaterno ");
-            if (rol != null && !rol.isEmpty()) jpql.append("AND LOWER(r.NombreRol) LIKE :rol ");
-
-            TypedQuery<Usuario> queryUsuario = entityManager.createQuery(jpql.toString(), Usuario.class);
-
-            if (nombre != null && !nombre.isEmpty()) queryUsuario.setParameter("nombre", "%" + nombre.toLowerCase() + "%");
-            if (apellidoPaterno != null && !apellidoPaterno.isEmpty()) queryUsuario.setParameter("apellidoPaterno", "%" + apellidoPaterno.toLowerCase() + "%");
-            if (apellidoMaterno != null && !apellidoMaterno.isEmpty()) queryUsuario.setParameter("apellidoMaterno", "%" + apellidoMaterno.toLowerCase() + "%");
-            if (rol != null && !rol.isEmpty()) queryUsuario.setParameter("rol", "%" + rol.toLowerCase() + "%");
-
-            List<Usuario> usuarios = queryUsuario.getResultList();
-
-            List<com.digis.com.ETenaProgramacionNCapasMaven.ML.Usuario> usuarioML = usuarios.stream().map(usuarioMapper -> modelMapper.map(usuarioMapper, com.digis.com.ETenaProgramacionNCapasMaven.ML.Usuario.class)).toList();
-
-            result.objects = (List) usuarioML;
-            result.correct = true;
-        } catch (Exception ex) {
-            result.correct = false;
-            result.errorMessage = ex.getLocalizedMessage();
-            result.ex = ex;
-        }
-        return result;
-    }
-
-    */
+    
     @Override
     public Result GetById(int idUsuario){
         Result result = new Result();
@@ -129,6 +110,7 @@ public class UsuarioDAOJPAImplementation implements iUsuarioJPA {
         }
     return result;    
     }
+    
     @Override
     @Transactional
     public Result<Usuario> Add(Usuario usuario) {
@@ -139,8 +121,7 @@ public class UsuarioDAOJPAImplementation implements iUsuarioJPA {
                     direccion.setUsuario(usuario); 
                 }
             }
-
-            entityManager.persist(usuario); // Ahora persistirá usuario y direcciones en cascada
+            entityManager.persist(usuario);
 
             result.correct = true;
             result.object = usuario;
@@ -151,6 +132,7 @@ public class UsuarioDAOJPAImplementation implements iUsuarioJPA {
         }
         return result;
     }
+    
     @Override
     @Transactional
     public Result AddAll(List<Usuario> usuarios){

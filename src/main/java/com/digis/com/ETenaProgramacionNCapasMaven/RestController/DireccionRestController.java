@@ -2,8 +2,13 @@
 package com.digis.com.ETenaProgramacionNCapasMaven.RestController;
 
 import com.digis.com.ETenaProgramacionNCapasMaven.DAO.DireccionDAOJPAImplementation;
+import com.digis.com.ETenaProgramacionNCapasMaven.DAO.UsuarioDAOJPAImplementation;
+import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Colonia;
 import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Direccion;
+import com.digis.com.ETenaProgramacionNCapasMaven.JPA.DireccionAddDTO;
+import com.digis.com.ETenaProgramacionNCapasMaven.JPA.DireccionUpdateDTO;
 import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Result;
+import com.digis.com.ETenaProgramacionNCapasMaven.JPA.Usuario;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -11,6 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,6 +34,9 @@ public class DireccionRestController {
     @Autowired
     private DireccionDAOJPAImplementation direccionDAOJPAImplentation;
     
+    @Autowired
+    private UsuarioDAOJPAImplementation usuarioDAOJPAImplementation;
+    
     @GetMapping("/getbyid")
     public ResponseEntity<?> getById(@RequestParam int idDireccion) {
 
@@ -44,12 +53,60 @@ public class DireccionRestController {
         }
     }
     @PutMapping("/{idDireccion}")
-    public ResponseEntity<?> update(@PathVariable int idDireccion, @RequestBody Direccion direccion){
-        try{
+    public ResponseEntity<?> update(@PathVariable int idDireccion,
+                                    @RequestBody DireccionUpdateDTO dto,
+                                    Authentication authentication) {
+
+        System.out.println("Entró al update dirección con idDireccion: " + idDireccion);
+
+        try {
+            String username = authentication.getName();
+
+            boolean esAdmin = authentication.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_Admin"));
+
+            Result<Direccion> resultDireccion = direccionDAOJPAImplentation.GetById(idDireccion);
+
+            if (!resultDireccion.correct || resultDireccion.object == null) {
+                return ResponseEntity.status(404).body("La dirección no existe");
+            }
+
+            Direccion direccionExistente = resultDireccion.object;
+
+            if (!esAdmin) {
+                Result<Usuario> resultUsuarioAuth = usuarioDAOJPAImplementation.getByUsername(username);
+
+                if (!resultUsuarioAuth.correct || resultUsuarioAuth.object == null) {
+                    return ResponseEntity.status(401).body("Usuario autenticado no encontrado");
+                }
+
+                Usuario usuarioAuth = resultUsuarioAuth.object;
+
+                if (direccionExistente.getUsuario() == null ||
+                    direccionExistente.getUsuario().getIdUsuario() != usuarioAuth.getIdUsuario()) {
+
+                    return ResponseEntity.status(403)
+                            .body("Forbidden: no puedes actualizar la dirección de otro usuario");
+                }
+            }
+
+            Direccion direccion = new Direccion();
             direccion.setIdDireccion(idDireccion);
+
+            direccion.setCalle(dto.getCalle());
+            direccion.setNumeroExterior(dto.getNumeroExterior());
+            direccion.setNumeroInterior(dto.getNumeroInterior());
+
+            if (dto.getIdColonia() != null) {
+                Colonia colonia = new Colonia();
+                colonia.setIdColonia(dto.getIdColonia());
+                direccion.setColonia(colonia);
+            }
+
             Result<Direccion> result = direccionDAOJPAImplentation.UpdateDireccion(direccion);
-            if(result.correct){
-                if(result.object != null){
+
+            if (result.correct) {
+                if (result.object != null) {
                     return ResponseEntity.ok(result);
                 } else {
                     return ResponseEntity.notFound().build();
@@ -57,28 +114,36 @@ public class DireccionRestController {
             } else {
                 return ResponseEntity.badRequest().body(result.errorMessage);
             }
-        }catch (Exception ex){
-            return ResponseEntity.status(500).body(ex);
+
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body(ex.getMessage());
         }
     }
     @PostMapping("/{idUsuario}/direccion")
-    public ResponseEntity<?> add(@PathVariable int idUsuario, @RequestBody Direccion direccion){
-        try{
-            Result<Direccion> result = direccionDAOJPAImplentation.Add(idUsuario, direccion);
-            if(result.correct){
-                if(result.object != null){
-                    return ResponseEntity.ok(result);
-                }else {
-                    return ResponseEntity.notFound().build();
-                }
-            } else {
-                return ResponseEntity.badRequest().body(result.errorMessage);
-            }
+    public ResponseEntity<?> add(@PathVariable int idUsuario, @RequestBody DireccionAddDTO dto) {
         
-        }catch(Exception ex){
-            return ResponseEntity.status(500).body(ex);
+        try {
+            Direccion direccion = new Direccion();
+            direccion.setCalle(dto.getCalle());
+            direccion.setNumeroExterior(dto.getNumeroExterior());
+            direccion.setNumeroInterior(dto.getNumeroInterior());
+
+            Colonia colonia = new Colonia();
+            colonia.setIdColonia(dto.getColonia().getIdColonia());
+            direccion.setColonia(colonia);
+
+            Result<Direccion> result = direccionDAOJPAImplentation.Add(idUsuario, direccion);
+
+            if (result.correct) {
+                return ResponseEntity.status(201).body(result);
+            } else {
+                return ResponseEntity.badRequest().body(result);
+            }
+        } catch (Exception ex) {
+            return ResponseEntity.status(500).body("Error: " + ex.getMessage());
         }
     }
+
     @Tag(name = "Direccion", description = "Endpoints para el procesamiento de Direccion")
     @Operation(summary = "Eliminar Direccion", 
                description = "Eliminar una Direccion mediante su ID")
